@@ -2,7 +2,9 @@ use crate::models::{ChapterMeta, FfprobeOutput};
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+use tokio::sync::mpsc;
 
 pub async fn get_chapters(file_path: &Path) -> Result<Vec<ChapterMeta>> {
     let output = Command::new("ffprobe")
@@ -22,49 +24,80 @@ pub async fn get_chapters(file_path: &Path) -> Result<Vec<ChapterMeta>> {
     Ok(ffprobe_out.chapters)
 }
 
-pub async fn convert_single(input: &Path, output: &Path) -> Result<()> {
-    let status = Command::new("ffmpeg")
-        .arg("-y") // Overwrite
+pub async fn convert_with_progress(
+    input: &Path,
+    output: &Path,
+    total_duration_ms: u64,
+    tx: mpsc::Sender<f64>,
+) -> Result<()> {
+    let mut child = Command::new("ffmpeg")
+        .args(&["-y", "-progress", "pipe:1"])
         .arg("-i")
         .arg(input)
-        .arg("-vn") // No video
-        .args(["-c:a", "libmp3lame", "-q:a", "2"])
+        .args(&["-vn", "-c:a", "libmp3lame", "-q:a", "2"])
         .arg(output)
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::null())
-        .status()
-        .await?;
+        .spawn()?;
 
+    let stdout = child.stdout.take().context("Failed to capture stdout")?;
+    let mut reader = BufReader::new(stdout).lines();
+
+    while let Some(line) = reader.next_line().await? {
+        if line.starts_with("out_time_ms=") {
+            if let Ok(ms) = line.replace("out_time_ms=", "").parse::<u64>() {
+                // Note: ffmpeg out_time_ms is in microseconds, convert to ms
+                let current_ms = ms / 1000;
+                let progress = (current_ms as f64 / total_duration_ms as f64).min(1.0);
+                let _ = tx.send(progress).await;
+            }
+        }
+    }
+
+    let status = child.wait().await?;
     if status.success() {
+        let _ = tx.send(1.0).await;
         Ok(())
     } else {
-        Err(anyhow::anyhow!("FFmpeg conversion failed"))
+        Err(anyhow::anyhow!("FFmpeg failed"))
     }
 }
 
-pub async fn convert_split_chapter(
+pub async fn convert_split_chapter_with_progress(
     input: &Path,
     output: &Path,
     start_time: &str,
     end_time: &str,
+    duration_ms: u64,
+    tx: mpsc::Sender<f64>,
 ) -> Result<()> {
-    let status = Command::new("ffmpeg")
-        .arg("-y")
+    let mut child = Command::new("ffmpeg")
+        .args(&["-y", "-progress", "pipe:1"])
         .arg("-i")
         .arg(input)
-        .arg("-vn")
-        .arg("-ss")
-        .arg(start_time)
-        .arg("-to")
-        .arg(end_time)
-        .args(["-c:a", "libmp3lame", "-q:a", "2"])
+        .args(&["-vn", "-ss", start_time, "-to", end_time])
+        .args(&["-c:a", "libmp3lame", "-q:a", "2"])
         .arg(output)
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::null())
-        .status()
-        .await?;
+        .spawn()?;
 
+    let stdout = child.stdout.take().context("Failed to capture stdout")?;
+    let mut reader = BufReader::new(stdout).lines();
+
+    while let Some(line) = reader.next_line().await? {
+        if line.starts_with("out_time_ms=") {
+            if let Ok(ms) = line.replace("out_time_ms=", "").parse::<u64>() {
+                let current_ms = ms / 1000;
+                let progress = (current_ms as f64 / duration_ms as f64).min(1.0);
+                let _ = tx.send(progress).await;
+            }
+        }
+    }
+
+    let status = child.wait().await?;
     if status.success() {
+        let _ = tx.send(1.0).await;
         Ok(())
     } else {
         Err(anyhow::anyhow!("FFmpeg chapter extraction failed"))
