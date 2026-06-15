@@ -12,7 +12,7 @@ use ratatui::{
     backend::CrosstermBackend,
     layout::{Constraint, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Row, Table},
+    widgets::{Block, Borders, Gauge, Row, Table},
     Terminal,
 };
 use std::{env, io};
@@ -41,7 +41,7 @@ async fn main() -> anyhow::Result<()> {
                         let status_str = match &item.status {
                             models::ConversionStatus::Ready => "Ready".to_string(),
                             models::ConversionStatus::ExtractingMetadata => "Extracting...".to_string(),
-                            models::ConversionStatus::Converting(p) => format!("Converting {:.0}%", p * 100.0),
+                            models::ConversionStatus::Converting(p) => format!("[Converting {:.0}%]", p * 100.0),
                             models::ConversionStatus::Done => "Done".to_string(),
                             models::ConversionStatus::Error(_) => "Error".to_string(),
                         };
@@ -61,8 +61,23 @@ async fn main() -> anyhow::Result<()> {
                     f.render_widget(b, chunks[0]);
                 }
                 AppScreen::Converting => {
+                    let chunks = Layout::default()
+                        .direction(ratatui::layout::Direction::Vertical)
+                        .constraints([
+                            Constraint::Length(3), // Progress bar
+                            Constraint::Min(0),    // Message
+                        ])
+                        .split(f.size());
+
+                    let progress = app.get_overall_progress();
+                    let gauge = Gauge::default()
+                        .block(Block::default().title(" Overall Progress ").borders(Borders::ALL))
+                        .gauge_style(Style::default().fg(Color::Yellow))
+                        .percent((progress * 100.0) as u16);
+                    f.render_widget(gauge, chunks[0]);
+
                     let b = Block::default().title(" Converting... Please wait or press q to abort ").borders(Borders::ALL);
-                    f.render_widget(b, chunks[0]);
+                    f.render_widget(b, chunks[1]);
                 }
             }
         })?;

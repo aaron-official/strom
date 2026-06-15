@@ -74,12 +74,74 @@ impl App {
             self.files[i].selected = !self.files[i].selected;
         }
     }
+
+    pub fn get_overall_progress(&self) -> f64 {
+        let selected_files: Vec<_> = self.files.iter().filter(|f| f.selected).collect();
+        if selected_files.is_empty() {
+            return 0.0;
+        }
+
+        let total_progress: f64 = selected_files.iter().map(|f| {
+            match f.status {
+                ConversionStatus::Done => 1.0,
+                ConversionStatus::Converting(p) => p,
+                _ => 0.0,
+            }
+        }).sum();
+
+        total_progress / selected_files.len() as f64
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn test_overall_progress() {
+        let files = vec![
+            AudioFile {
+                filename: "1.m4b".to_string(),
+                path: PathBuf::from("1.m4b"),
+                selected: true,
+                status: ConversionStatus::Done,
+                duration_ms: 0,
+            },
+            AudioFile {
+                filename: "2.m4b".to_string(),
+                path: PathBuf::from("2.m4b"),
+                selected: true,
+                status: ConversionStatus::Converting(0.5),
+                duration_ms: 0,
+            },
+            AudioFile {
+                filename: "3.m4b".to_string(),
+                path: PathBuf::from("3.m4b"),
+                selected: false,
+                status: ConversionStatus::Converting(0.9),
+                duration_ms: 0,
+            },
+            AudioFile {
+                filename: "4.m4b".to_string(),
+                path: PathBuf::from("4.m4b"),
+                selected: true,
+                status: ConversionStatus::Ready,
+                duration_ms: 0,
+            },
+        ];
+
+        let app = App {
+            files,
+            table_state: TableState::default(),
+            screen: AppScreen::List,
+            should_quit: false,
+        };
+
+        // Selected files are 1 (1.0), 2 (0.5), 4 (0.0).
+        // Total = 1.5. Count = 3. Average = 0.5.
+        assert_eq!(app.get_overall_progress(), 0.5);
+    }
 
     #[test]
     fn test_navigation_empty() {
