@@ -91,6 +91,18 @@ impl App {
 
         total_progress / selected_files.len() as f64
     }
+
+    pub fn update_file_status(&mut self, index: usize, status: ConversionStatus) {
+        if let Some(file) = self.files.get_mut(index) {
+            file.status = status;
+        }
+    }
+
+    pub fn update_file_duration(&mut self, index: usize, duration_ms: u64) {
+        if let Some(file) = self.files.get_mut(index) {
+            file.duration_ms = duration_ms;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -241,5 +253,31 @@ mod tests {
         
         app.toggle_selection();
         assert!(!app.files[0].selected);
+    }
+
+    #[test]
+    fn test_update_status_and_duration() {
+        let files = vec![
+            AudioFile {
+                filename: "1.m4b".to_string(),
+                path: PathBuf::from("1.m4b"),
+                selected: false,
+                status: ConversionStatus::Ready,
+                duration_ms: 0,
+            },
+        ];
+
+        let mut app = App {
+            files,
+            table_state: TableState::default(),
+            screen: AppScreen::List,
+            should_quit: false,
+        };
+
+        app.update_file_status(0, ConversionStatus::Converting(0.5));
+        assert_eq!(app.files[0].status, ConversionStatus::Converting(0.5));
+
+        app.update_file_duration(0, 1000);
+        assert_eq!(app.files[0].duration_ms, 1000);
     }
 }
