@@ -1,3 +1,4 @@
+pub mod audio;
 pub mod models;
 
 fn main() {
