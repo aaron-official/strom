@@ -70,3 +70,67 @@ pub async fn convert_split_chapter(
         Err(anyhow::anyhow!("FFmpeg chapter extraction failed"))
     }
 }
+
+pub async fn get_duration_ms(file_path: &Path) -> Result<u64> {
+    let output = Command::new("ffprobe")
+        .args([
+            "-v",
+            "quiet",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+        ])
+        .arg(file_path)
+        .output()
+        .await?;
+
+    let duration_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let duration_secs: f64 = duration_str.parse().context("Failed to parse duration")?;
+    Ok((duration_secs * 1000.0) as u64)
+}
+
+pub fn get_output_path(input: &Path, is_split: bool) -> Result<std::path::PathBuf> {
+    let parent = input.parent().context("No parent dir")?;
+    let converted_dir = parent.join("converted");
+    if !converted_dir.exists() {
+        std::fs::create_dir_all(&converted_dir)?;
+    }
+
+    if is_split {
+        let stem = input.file_stem().context("No file stem")?.to_string_lossy();
+        let split_dir = converted_dir.join(format!("{}_chapters", stem));
+        if !split_dir.exists() {
+            std::fs::create_dir_all(&split_dir)?;
+        }
+        Ok(split_dir)
+    } else {
+        Ok(converted_dir)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[tokio::test]
+    async fn test_get_duration_ms() {
+        let path = PathBuf::from("01 The Way of Kings.m4b");
+        // This should fail initially because the function is not implemented
+        let duration = get_duration_ms(&path).await.unwrap();
+        assert!(duration > 0);
+    }
+
+    #[test]
+    fn test_get_output_path() {
+        let path = PathBuf::from("test_dir/test.m4b");
+        // Mocking parent directory behavior for test_dir/test.m4b
+        // We'll use a real temp dir if needed, but for now just test the logic
+        let output = get_output_path(&path, false).unwrap();
+        assert!(output.ends_with("converted"));
+        
+        let output_split = get_output_path(&path, true).unwrap();
+        assert!(output_split.ends_with("converted/test_chapters"));
+    }
+}
