@@ -39,9 +39,11 @@ async fn main() -> anyhow::Result<()> {
                     let rows: Vec<Row> = app.files.iter().map(|item| {
                         let style = if item.selected { Style::default().fg(Color::Yellow) } else { Style::default() };
                         let status_str = match &item.status {
-                            models::ConversionStatus::Ready => "Ready",
-                            models::ConversionStatus::Converting => "Converting",
-                            _ => "Unknown",
+                            models::ConversionStatus::Ready => "Ready".to_string(),
+                            models::ConversionStatus::ExtractingMetadata => "Extracting...".to_string(),
+                            models::ConversionStatus::Converting(p) => format!("Converting {:.0}%", p * 100.0),
+                            models::ConversionStatus::Done => "Done".to_string(),
+                            models::ConversionStatus::Error(_) => "Error".to_string(),
                         };
                         let sel_marker = if item.selected { "[x]" } else { "[ ]" };
                         Row::new(vec![sel_marker.to_string(), item.filename.clone(), status_str.to_string()])

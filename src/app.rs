@@ -29,6 +29,7 @@ impl App {
                         path,
                         selected: false,
                         status: ConversionStatus::Ready,
+                        duration_ms: 0,
                     });
                 }
             }
@@ -103,18 +104,21 @@ mod tests {
                 path: PathBuf::from("1.m4b"),
                 selected: false,
                 status: ConversionStatus::Ready,
+                duration_ms: 0,
             },
             AudioFile {
                 filename: "2.m4b".to_string(),
                 path: PathBuf::from("2.m4b"),
                 selected: false,
                 status: ConversionStatus::Ready,
+                duration_ms: 0,
             },
             AudioFile {
                 filename: "3.m4b".to_string(),
                 path: PathBuf::from("3.m4b"),
                 selected: false,
                 status: ConversionStatus::Ready,
+                duration_ms: 0,
             },
         ];
 
@@ -154,6 +158,7 @@ mod tests {
                 path: PathBuf::from("1.m4b"),
                 selected: false,
                 status: ConversionStatus::Ready,
+                duration_ms: 0,
             },
         ];
 
