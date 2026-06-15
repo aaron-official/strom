@@ -52,18 +52,34 @@ impl App {
     }
 
     pub fn next(&mut self) {
-        if self.files.is_empty() { return; }
+        if self.files.is_empty() {
+            return;
+        }
         let i = match self.table_state.selected() {
-            Some(i) => if i >= self.files.len() - 1 { 0 } else { i + 1 },
+            Some(i) => {
+                if i >= self.files.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
             None => 0,
         };
         self.table_state.select(Some(i));
     }
 
     pub fn previous(&mut self) {
-        if self.files.is_empty() { return; }
+        if self.files.is_empty() {
+            return;
+        }
         let i = match self.table_state.selected() {
-            Some(i) => if i == 0 { self.files.len() - 1 } else { i - 1 },
+            Some(i) => {
+                if i == 0 {
+                    self.files.len() - 1
+                } else {
+                    i - 1
+                }
+            }
             None => 0,
         };
         self.table_state.select(Some(i));
@@ -81,13 +97,14 @@ impl App {
             return 0.0;
         }
 
-        let total_progress: f64 = selected_files.iter().map(|f| {
-            match f.status {
+        let total_progress: f64 = selected_files
+            .iter()
+            .map(|f| match f.status {
                 ConversionStatus::Done => 1.0,
                 ConversionStatus::Converting(p) => p,
                 _ => 0.0,
-            }
-        }).sum();
+            })
+            .sum();
 
         total_progress / selected_files.len() as f64
     }
@@ -207,34 +224,32 @@ mod tests {
         };
 
         assert_eq!(app.table_state.selected(), Some(0));
-        
+
         app.next();
         assert_eq!(app.table_state.selected(), Some(1));
-        
+
         app.next();
         assert_eq!(app.table_state.selected(), Some(2));
-        
+
         app.next();
         assert_eq!(app.table_state.selected(), Some(0));
-        
+
         app.previous();
         assert_eq!(app.table_state.selected(), Some(2));
-        
+
         app.previous();
         assert_eq!(app.table_state.selected(), Some(1));
     }
 
     #[test]
     fn test_toggle_selection() {
-        let files = vec![
-            AudioFile {
-                filename: "1.m4b".to_string(),
-                path: PathBuf::from("1.m4b"),
-                selected: false,
-                status: ConversionStatus::Ready,
-                duration_ms: 0,
-            },
-        ];
+        let files = vec![AudioFile {
+            filename: "1.m4b".to_string(),
+            path: PathBuf::from("1.m4b"),
+            selected: false,
+            status: ConversionStatus::Ready,
+            duration_ms: 0,
+        }];
 
         let mut table_state = TableState::default();
         table_state.select(Some(0));
@@ -247,25 +262,23 @@ mod tests {
         };
 
         assert!(!app.files[0].selected);
-        
+
         app.toggle_selection();
         assert!(app.files[0].selected);
-        
+
         app.toggle_selection();
         assert!(!app.files[0].selected);
     }
 
     #[test]
     fn test_update_status_and_duration() {
-        let files = vec![
-            AudioFile {
-                filename: "1.m4b".to_string(),
-                path: PathBuf::from("1.m4b"),
-                selected: false,
-                status: ConversionStatus::Ready,
-                duration_ms: 0,
-            },
-        ];
+        let files = vec![AudioFile {
+            filename: "1.m4b".to_string(),
+            path: PathBuf::from("1.m4b"),
+            selected: false,
+            status: ConversionStatus::Ready,
+            duration_ms: 0,
+        }];
 
         let mut app = App {
             files,

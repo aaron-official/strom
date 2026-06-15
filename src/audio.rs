@@ -18,8 +18,8 @@ pub async fn get_chapters(file_path: &Path) -> Result<Vec<ChapterMeta>> {
         return Err(anyhow::anyhow!("ffprobe failed"));
     }
 
-    let ffprobe_out: FfprobeOutput = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse ffprobe json")?;
+    let ffprobe_out: FfprobeOutput =
+        serde_json::from_slice(&output.stdout).context("Failed to parse ffprobe json")?;
 
     Ok(ffprobe_out.chapters)
 }
@@ -31,10 +31,10 @@ pub async fn convert_with_progress(
     tx: mpsc::Sender<f64>,
 ) -> Result<()> {
     let mut child = Command::new("ffmpeg")
-        .args(&["-y", "-progress", "pipe:1"])
+        .args(["-y", "-progress", "pipe:1"])
         .arg("-i")
         .arg(input)
-        .args(&["-vn", "-c:a", "libmp3lame", "-q:a", "2"])
+        .args(["-vn", "-c:a", "libmp3lame", "-q:a", "2"])
         .arg(output)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -72,11 +72,11 @@ pub async fn convert_split_chapter_with_progress(
     tx: mpsc::Sender<f64>,
 ) -> Result<()> {
     let mut child = Command::new("ffmpeg")
-        .args(&["-y", "-progress", "pipe:1"])
+        .args(["-y", "-progress", "pipe:1"])
         .arg("-i")
         .arg(input)
-        .args(&["-vn", "-ss", start_time, "-to", end_time])
-        .args(&["-c:a", "libmp3lame", "-q:a", "2"])
+        .args(["-vn", "-ss", start_time, "-to", end_time])
+        .args(["-c:a", "libmp3lame", "-q:a", "2"])
         .arg(output)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -149,13 +149,13 @@ mod tests {
     #[test]
     fn test_get_output_path_logic() {
         let path = std::env::current_dir().unwrap().join("test_book.m4b");
-        
+
         let out = get_output_path(&path, false).unwrap();
         assert!(out.ends_with("converted"));
-        
+
         let out_split = get_output_path(&path, true).unwrap();
         assert!(out_split.ends_with("converted/test_book_chapters"));
-        
+
         // Cleanup the created "converted" dir
         let conv = path.parent().unwrap().join("converted");
         if conv.exists() {
